@@ -6,22 +6,22 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import model.Model;
 import model.network.GameServer;
-import view.View;
-
-import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
+import view.View;;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ViewModel extends Observable implements Observer {
     public Model m = Model.getModel();
     public IntegerProperty score;
     public StringProperty playerQuery;
     public ListProperty<String> playerHand;
+    public StringProperty boardQuery;
 
     public ViewModel() {
         this.score = new SimpleIntegerProperty(0);
         this.playerHand = new SimpleListProperty<>();
         this.playerQuery = new SimpleStringProperty("");
+        this.boardQuery = new SimpleStringProperty("");
     }
 
     public void hostGame(int port, String name) {
@@ -40,17 +40,21 @@ public class ViewModel extends Observable implements Observer {
     public void update(Observable o, Object arg) {
         if (o == m) {
             Platform.runLater(() -> {
-                score.set(m.getPlayerScore());
+                score.set(m.getPlayersScoreMap().get(m.playerId));
+
             });
-            playerHand.set(FXCollections.observableList(m.getPlayerHand()));
+            playerHand.set(FXCollections.observableList(m.getPlayersHandMap().get(m.playerId)));
             View.getView().setPlayerHand();
             // converting the m.getPlayerHand() to observableList (Only way to make apply the set)
             playerQuery.unbind();
             playerQuery.set(m.getPlayerQuery());
+            boardQuery.set(m.boardQuery);
+            //rendering the board after placing Tiles
+
+
 
         }
     }
-
 
 
 

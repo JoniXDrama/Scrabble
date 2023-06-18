@@ -1,39 +1,44 @@
 package model.network;
 
-import javafx.stage.Stage;
-import model.concrete.GameState;
+
 import model.concrete.Player;
-import view.GamePage;
 
 import java.io.*;
 import java.net.Socket;
 
 public class GameClientHandler extends Thread {
-    public Socket clientSocket;
+    public Socket socket;
     static private BufferedReader readFromClient;
     private PrintWriter writeToClient;
-    public Player player;
     String stringWord;
+    String query;
+    public Player player;
+    public Object locker = new Object();
 
-    public GameClientHandler(Socket socket, Player p) {
+    public GameClientHandler(Socket s, Player p) {
         try {
-            player = p;
-            clientSocket = socket;
-            readFromClient = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            writeToClient = new PrintWriter(clientSocket.getOutputStream(), true);
+            player =p;
+            socket = s;
+            readFromClient = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            writeToClient = new PrintWriter(socket.getOutputStream(), true);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
+
+
     public void run() {
         try {
 
-            System.out.println("New client connected: " +player.getPlayerName()+" | From: "+ clientSocket.getLocalSocketAddress());
+          //  System.out.println("New client connected: " +client.name+" | From: "+ client.socket.getLocalSocketAddress());
 
             String message;
             while ((message = readFromClient.readLine()) != null) {
-                System.out.println(message);
+                if(message.equals("/turn")){
+                    message = readFromClient.readLine();
+                    query = message;
+                }
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -41,9 +46,9 @@ public class GameClientHandler extends Thread {
             try {
                 readFromClient.close();
                 writeToClient.close();
-                clientSocket.close();
+                socket.close();
                 GameServer.removeClient(this);
-                GameServer.broadcastToClients("Client " + clientSocket + " has left the chat.");
+                GameServer.broadcastToClients("Client " + socket + " has left the chat.");
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -67,6 +72,9 @@ public class GameClientHandler extends Thread {
         return stringWord;
     }
 
+    public String getQuery() {
+        return query;
+    }
 
 }
 

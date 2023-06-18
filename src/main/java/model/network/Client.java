@@ -1,5 +1,6 @@
 package model.network;
 import javafx.application.Platform;
+import model.Model;
 import model.concrete.Player;
 import view.GamePage;
 import view.View;
@@ -8,10 +9,11 @@ import view_model.ViewModel;
 
 import java.io.*;
 import java.net.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 
 // Client class
-public class Client extends Player {
+public class Client  {
     String ip;
     int port;
     String name;
@@ -23,6 +25,8 @@ public class Client extends Player {
     private WaitingPage wp = new WaitingPage();
     public ViewModel vm = ViewModel.getViewModel();
     public View v = View.getView();
+    public Player p  = new Player();
+    ReentrantLock lock = new ReentrantLock();
 
     public Client(String ip, int port, String name) {
         this.ip = ip;
@@ -39,33 +43,81 @@ public class Client extends Player {
             readFromServer = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             writeToServer = new PrintWriter(socket.getOutputStream(), true);
 
-
-            // receiving msg (another thread?)
-                    String message;
-                    while ((message = readFromServer.readLine()) != null)
+       new Thread(()->
+       {
+           String message;
+            try
+            {
+                while ((message = readFromServer.readLine()) != null)
+                {
+                    if (message.equals("/init"))
                     {
-                        if(message.equals("/start"))
-                        {
-                            Platform.runLater(()->{
-                                gp.start(WaitingPage.theStage);
-
-                               View.getView().setViewModel();
-
-                                //       wp.setClientBoard();
+                        message = readFromServer.readLine();
+                        p.setPlayerHand(p.StringToTiles(message));
+                        lock.lock();
+                        Platform.runLater(()->{
+                            Model.getModel().updatePlayerValues(p.getSumScore(), p.convertTilesToStrings(p.getPlayerHand()),p.getId());
                         });
-                        }
-                        else
-                        {
+                        lock.unlock();
 
-                            System.out.println(message);
-                        }
-                     }
+                        System.out.println(message);
+                    }
 
-//            // sending msg
-//            String message;
-//            while ((message = consoleReader.readLine()) != null) {
-//                writeToServer.println(message);
-//            }
+                     else if (message.equals("/start"))
+                    {
+                            lock.lock();
+                            Platform.runLater(() ->
+                            {
+                                gp.start(WaitingPage.theStage);
+                                Model.getModel().updatePlayerValues(p.getSumScore(), p.convertTilesToStrings(p.getPlayerHand()),p.getId());
+                            });
+                            lock.unlock();
+
+                    }
+                     else if(message.equals("/update")){
+                        message = readFromServer.readLine();
+                        p.setPlayerHand(p.StringToTiles(message));
+                        p.setSumScore(Integer.parseInt(readFromServer.readLine()));
+                        String query = readFromServer.readLine();
+                        System.out.println("query from client!" + query);
+                        lock.lock();
+                        Platform.runLater(()->{
+                            Model.getModel().updatePlayerValues(p.getSumScore(), p.convertTilesToStrings(p.getPlayerHand()),p.getId());
+                            gp.updateBoard(query);
+//                            Model.getModel().updateBoard(query);
+                        });
+                        lock.unlock();
+                    }
+                    else if(message.equals("/turn")){
+                        lock.lock();
+                        Platform.runLater(()->{
+                            Model.getModel().updatePlayerValues(p.getSumScore(), p.convertTilesToStrings(p.getPlayerHand()),p.getId());
+                        });
+                        lock.unlock();
+                        synchronized (gp.getLockObject()) {
+                            try {
+                                gp.getLockObject().wait(); // Releases the lock and waits until notified
+                                writeToServer.println( "/turn\n"+ gp.getPlayerQuery());
+
+                            } catch (InterruptedException ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    }
+                }
+            }
+            catch (IOException e)
+            {
+                e.printStackTrace();
+            }
+        }).start();
+            // receiving msg (another thread?)
+
+            // sending msg
+            String message;
+            while ((message = consoleReader.readLine()) != null) {
+                writeToServer.println(message);
+            }
 
         } catch (IOException e) {
             e.printStackTrace();

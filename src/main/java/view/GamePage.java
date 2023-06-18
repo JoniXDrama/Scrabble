@@ -25,12 +25,12 @@ import java.util.*;
 public class GamePage extends Application {
 
     private static Stage theStage;
-    private GridPane gameBoard;
     public final ObservableList<String> placedTiles = FXCollections.observableArrayList();
-    private static HashMap<String , Point2D> map = new HashMap<>(); //map between letter and coordinate on gameBoard
+    private static Map<String , Point2D> map = Collections.synchronizedMap(new HashMap<>()); //map between letter and coordinate on gameBoard
     public GridPane playerRack;
-    public Label scoreLabel;
+    public Label  scoreLabel = new Label("0");
     public Label playerTmpQuery = new Label();
+    public Label boardQuery = new Label();
     private final Object lockObject = new Object();
 
 
@@ -54,10 +54,8 @@ public class GamePage extends Application {
     };
 
 
-    public static void main(String[] args) {
-        launch(args);
-    }
-
+    List<Label> list = Collections.synchronizedList(new ArrayList<>(Collections.nCopies(7, new Label(""))));
+    GridPane gameBoard = new GridPane();
 
 
 
@@ -67,7 +65,6 @@ public class GamePage extends Application {
         primaryStage.setTitle("Scrabble Game");
 
         // Game board
-        gameBoard = new GridPane();
         gameBoard.setHgap(5);
         gameBoard.setVgap(5);
 
@@ -84,7 +81,7 @@ public class GamePage extends Application {
         }
 
         // Score label
-        scoreLabel = new Label("0");
+
         scoreLabel.setStyle("-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;");
         scoreLabel.setAlignment(Pos.BOTTOM_CENTER);
         Label scoreTitle = new Label("Score: ");
@@ -162,10 +159,8 @@ public class GamePage extends Application {
             //if the move is not valid we need to remove the tiles from board and get it back to player hand
             //moveBackPlacedTiles();
 
-
-
-
             //reset the placedTiles list for the next turn
+
             placedTiles.clear();
             map.clear();
         });
@@ -202,12 +197,53 @@ public class GamePage extends Application {
         playerRack.setAlignment(Pos.BOTTOM_CENTER);
         root.getChildren().add(playerRack);
         // creating initial List that contains only X for playerRack not null, the initPack will override
-        List<Label> list = new ArrayList<>(Collections.nCopies(7, new Label("")));
+
         createRack(list);
         primaryStage.show();
     }
 
-    public void createRack(List<Label> list){
+
+    public void updateBoard(String message){
+        System.out.println( "from updateBoard"+message);
+        char[] ch = message.split(",")[0].toCharArray();
+        int row = Integer.parseInt(message.split(",")[1]);
+        int col = Integer.parseInt(message.split(",")[2]);
+        String isVert = message.split(",")[3];
+
+        if(isVert.equals("TRUE")){
+            for(int i = 0; i < ch.length; i++){
+                placeTileOnBoard(row + i,col,Character.toString(ch[i]));
+            }
+        }
+        else{
+            for(int i = 0; i < ch.length; i++){
+                placeTileOnBoard(row,col+i,Character.toString(ch[i]));
+            }
+        }
+    }
+    public Node getNodeFromGridPane(GridPane gridPane, int col, int row) {
+        for (Node node : gridPane.getChildren()) {
+            if (GridPane.getColumnIndex(node) == col && GridPane.getRowIndex(node) == row) {
+                return node;
+            }
+        }
+        return null;
+    }
+
+    public void placeTileOnBoard(int row, int col, String value) {
+        Node existingNode = getNodeFromGridPane(gameBoard, col, row);
+        Label cellLabel = (Label) existingNode;
+        if(cellLabel!=null) {
+            cellLabel.setText(value);
+        }
+    }
+
+    public String getPlayerQuery(){
+       return playerTmpQuery.getText();
+    }
+
+     public void createRack(List<Label> list){
+
         //Create the player rack tiles
         int i =0;
         for (Label lb : list) {
@@ -217,6 +253,8 @@ public class GamePage extends Application {
             i++;
         }
     }
+
+
 
     private Label createCellLabel(String cellValue, Color cellColor) {
         Label cellLabel = new Label(cellValue);
